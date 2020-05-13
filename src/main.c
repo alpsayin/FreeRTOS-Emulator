@@ -21,9 +21,11 @@
 #include "AsyncIO.h"
 
 #define mainGENERIC_PRIORITY (tskIDLE_PRIORITY)
+#define mainMAX_PRIORITY (configMAX_PRIORITIES-1)
 #define mainGENERIC_STACK_SIZE ((unsigned short)2560)
 
 static TaskHandle_t DemoTask = NULL;
+static TaskHandle_t FakeKeyISRTask = NULL;
 
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
@@ -42,6 +44,46 @@ void xGetButtonInput(void)
 
 #define KEYCODE(CHAR) SDL_SCANCODE_##CHAR
 
+void fakeKeyISR(char keycode)
+{
+    printf("fake ISR fired: %c \r\n", keycode);
+}
+
+void vFakeKeyISRFireTask(void *pvParameters)
+{
+	static int looper;
+	while (1) 
+    {
+        printf("waiting for key\r\n");
+        xQueueReceive(buttonInputQueue, &buttons.buttons, portMAX_DELAY);
+        if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) 
+        {
+            for (looper = 4; looper <= 29; looper++) 
+            {
+                if (buttons.buttons[looper]) 
+                {
+                    printf("Key pressed %c\r\n", looper - 4 + 'a');
+                    fakeKeyISR(looper - 4 + 'a');
+                }
+            }
+            for (looper = 30; looper <= 39; looper++) 
+            {
+                if (buttons.buttons[looper]) 
+                {
+                    printf("Key pressed %d\r\n", (looper - 29) % 10);
+                    fakeKeyISR((looper - 29) % 10 + '0');
+                }
+            }
+            for(looper=0; looper<SDL_NUM_SCANCODES; looper++)
+            {
+                if(buttons.buttons[looper])
+                    printf("buttons[%d] = %d\r\n", looper, buttons.buttons[looper]);
+            }
+            xSemaphoreGive(buttons.lock);
+        }
+    }
+}
+
 void vDemoTask(void *pvParameters)
 {
     // structure to store time retrieved from Linux kernel
@@ -55,9 +97,10 @@ void vDemoTask(void *pvParameters)
     // backend.
     tumDrawBindThread();
 
-    while (1) {
+    while (1) 
+    {
         tumEventFetchEvents(); // Query events backend for new events, ie. button presses
-        xGetButtonInput(); // Update global input
+		// xGetButtonInput(); // Update global input
 
         // `buttons` is a global shared variable and as such needs to be
         // guarded with a mutex, mutex must be obtained before accessing the
@@ -128,6 +171,11 @@ int main(int argc, char *argv[])
     if (xTaskCreate(vDemoTask, "DemoTask", mainGENERIC_STACK_SIZE * 2, NULL,
                     mainGENERIC_PRIORITY, &DemoTask) != pdPASS) {
         goto err_demotask;
+    }
+
+    if (xTaskCreate(vFakeKeyISRFireTask, "FakeKeyISRTask", mainGENERIC_STACK_SIZE * 2,
+		    NULL, mainMAX_PRIORITY, &FakeKeyISRTask) != pdPASS) {
+	    goto err_demotask;
     }
 
     vTaskStartScheduler();
