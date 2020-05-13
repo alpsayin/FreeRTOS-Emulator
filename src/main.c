@@ -137,7 +137,7 @@ void vDemoTask(void *pvParameters)
         tumDrawUpdateScreen(); // Refresh the screen to draw string
 
         // Basic sleep of 1000 milliseconds
-        vTaskDelay((TickType_t)1000);
+        vTaskDelay((TickType_t)100);
     }
 }
 
