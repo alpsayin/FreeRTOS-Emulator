@@ -97,10 +97,9 @@ void vDemoTask(void *pvParameters)
     // backend.
     tumDrawBindThread();
 
-    while (1) 
-    {
-        tumEventFetchEvents(); // Query events backend for new events, ie. button presses
-		// xGetButtonInput(); // Update global input
+    while (1) {
+        tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
+        // xGetButtonInput(); // Update global input
 
         // `buttons` is a global shared variable and as such needs to be
         // guarded with a mutex, mutex must be obtained before accessing the
