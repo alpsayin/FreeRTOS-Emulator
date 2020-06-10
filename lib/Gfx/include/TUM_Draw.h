@@ -103,6 +103,12 @@ typedef struct coord {
 } coord_t;
 
 /**
+ * @brief Handle used to reference loaded images, an invalid image will have a
+ * NULL handle
+ */
+typedef void *image_handle_t;
+
+/**
  * @brief Returns a string error message from the TUM Draw back end
  *
  * @return String holding the most recent TUM Draw error message
@@ -135,9 +141,19 @@ void tumDrawExit(void);
 /**
  * @brief Executes the queued draw jobs
  *
- * The tumDraw functions are designed to be callable from any thread, as such
- * each function queues a draw job into a queue. Once tumDrawUpdateScreen is called,
- * the queued draw jobs are executed by the background SDL thread.
+ * The tumDraw primative draw functions are designed to be callable from any
+ * thread, as such each function queues a draw job into a queue. Once
+ * tumDrawUpdateScreen is called, the queued draw jobs are executed by the
+ * background SDL thread.
+ *
+ * While primitive drawing functions, such as tumDrawCircle(), are thread-safe
+ * calls to tumDrawUpdateScreen() must come from the thread that holds the GL
+ * (graphics layer) context. A thread can obtain the GL context by calling
+ * tumDrawBindThread(). Please be wary that tumDrawBindThread() has a large
+ * overhead and should be avoided when possible. Having a centeralized screen
+ * updating thread is a good solution to this problem. Calls to GL context
+ * dependent calls, such as tumDrawUpdateScreen() will fail if the calling
+ * thread does not hold the GL context.
  *
  * @returns 0 on success
  */
@@ -150,6 +166,13 @@ int tumDrawUpdateScreen(void);
  * @return 0 on success
  */
 int tumDrawClear(unsigned int colour);
+
+/*
+ * @brief Copies a screenshot of the current frame to the next frame
+ *
+ * Experimental, performance can not be guarenteed.
+ */
+void tumDrawDuplicateBuffer(void);
 
 /**
  * @brief Draws an ellipse on the screen
@@ -279,6 +302,93 @@ int tumDrawPoly(coord_t *points, int n, unsigned int colour);
  * @return 0 on success
  */
 int tumDrawTriangle(coord_t *points, unsigned int colour);
+
+/**
+ * @brief Loads an image file from disk, loaded image file can be closed using
+ * tumDrawFreeLoadedImage()
+ *
+ * @param filename The location of the image file to be loaded relative to the
+ * executing binary
+ * @return Returns a image_handle_t handle to the image
+ */
+image_handle_t tumDrawLoadImage(char *filename);
+
+/**
+ * @brief Loads an image from disk and scales the image, loaded image file can
+ * be closed using tumDrawFreeLoadedImage(). Note that scaled images have large
+ * overheads compared to manually scaled images (changing image file's dimensions)
+ *
+ * @param filename The location of the image file to be loaded relative to the
+ * executing binary
+ * @param scale Scaling factor with which the image should be drawn
+ * @return Returns a image_handle_t handle to the image
+ */
+image_handle_t tumDrawLoadScaledImage(char *filename, float scale);
+
+/**
+ * @brief Closes a loaded image and frees all memory used by the image structure
+ *
+ * @param img Handle to the loaded image
+ * @return 0 on success
+ */
+int tumDrawFreeLoadedImage(image_handle_t *img);
+
+/**
+ * @brief Scales a loaded image, the scale is a value where, for example, 1.0
+ * represents the original image's size. The scaling factor scales the
+ * image relative to the image file's dimensions on disk
+ *
+ * @param img Handle to the image to be scaled
+ * @param scale Scaling factor to be applied to the image file
+ * @return 0 on success
+ */
+int tumDrawSetLoadedImageScale(image_handle_t img, float scale);
+
+/**
+ * @brief Retrieves the current scaling factor of an image
+ *
+ * @param img Handle to the image for which the scaling factor is to be
+ * retrieved
+ * @return Current scaling factor
+ */
+float tumDrawGetLoadedImageScale(image_handle_t img);
+
+/**
+ * @brief Retrieves the image's width when drawn to screen, ie. after scaling
+ *
+ * @param img Handle to the image for which the width is to be retrieved
+ * @return Width of the image in pixels
+ */
+int tumDrawGetLoadedImageWidth(image_handle_t img);
+
+/**
+ * @brief Retrieves the image's height when drawn to screen, ie. after scaling
+ *
+ * @param img Handle to the image for which the height is to be retrieved
+ * @return Height of the image in pixels
+ */
+int tumDrawGetLoadedImageHeight(image_handle_t img);
+
+/**
+ * @brief Retrieves bother the image's width and height when drawn to screen,
+ * ie. after scaling
+ *
+ * @param img Handle to the image of interest
+ * @param w Reference to the variable to store the retrieved width
+ * @param h Reference to the variable to store the retrieved height
+ * @return 0 on success
+ */
+int tumDrawGetLoadedImageSize(image_handle_t img, int *w, int *h);
+
+/**
+ * @brief Draws a loaded image to the screen
+ *
+ * @param img Handle to the image to be drawn to the screen
+ * @param x X coordinate of the top left corner of the image
+ * @param y Y coordinate of the top left corner of the image
+ * @return 0 on success
+ */
+int tumDrawLoadedImage(image_handle_t img, signed short x, signed short y);
 
 /**
  * @brief Draws an image on the screen
