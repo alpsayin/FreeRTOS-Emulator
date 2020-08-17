@@ -9,6 +9,7 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "semphr.h"
+#include "timers.h"
 #include "task.h"
 
 #include "TUM_Ball.h"
@@ -23,6 +24,10 @@
 #define mainGENERIC_PRIORITY (tskIDLE_PRIORITY)
 #define mainMAX_PRIORITY (configMAX_PRIORITIES-1)
 #define mainGENERIC_STACK_SIZE ((unsigned short)2560)
+#define NUM_TIMERS 5
+
+ /* An array to hold handles to the created timers. */
+ TimerHandle_t xTimers[ NUM_TIMERS ];
 
 static TaskHandle_t DemoTask = NULL;
 static TaskHandle_t FakeKeyISRTask = NULL;
