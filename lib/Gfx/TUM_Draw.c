@@ -685,6 +685,11 @@ static float timespecDiffMilli(struct timespec *start, struct timespec *stop)
 
 int tumDrawUpdateScreen(void)
 {
+    if(tumUtilIsCurGLThread()){
+        PRINT_ERROR("Updating screen from thread that does not hold GL context");
+        goto err;
+    }
+
 	static struct timespec last_time = { 0 }, cur_time = { 0 };
 
 	if (clock_gettime(CLOCK_MONOTONIC, &cur_time)) {
@@ -745,7 +750,7 @@ int tumDrawInit(char *path) // Should be called from the Thread running main()
 #endif /* DOCKER */
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 
-	if (SDL_Init(SDL_INIT_EVERYTHING)) {
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO)) {
 		PRINT_SDL_ERROR("SDL_Init failed");
 		goto err_sdl;
 	}
@@ -844,6 +849,8 @@ int tumDrawBindThread(void) // Should be called from the Drawing Thread
 		}
 
 	pthread_mutex_unlock(&loaded_images_lock);
+
+    tumUtilSetGLThread();
 
 	return 0;
 
@@ -1023,7 +1030,7 @@ int tumDrawPoly(coord_t *points, int n, unsigned int colour)
 {
 	INIT_JOB(job, DRAW_POLY);
 
-	coord_t *points_cpy = (coord_t *)malloc(sizeof(coord_t) * n);
+	coord_t *points_cpy = (coord_t *)calloc(n, sizeof(coord_t));
 	if (!points_cpy)
 		return -1;
 
@@ -1040,7 +1047,7 @@ int tumDrawTriangle(coord_t *points, unsigned int colour)
 {
 	INIT_JOB(job, DRAW_TRIANGLE);
 
-	coord_t *points_cpy = (coord_t *)malloc(sizeof(coord_t) * 3);
+	coord_t *points_cpy = (coord_t *)calloc(3, sizeof(coord_t));
 	if (!points_cpy)
 		return -1;
 
